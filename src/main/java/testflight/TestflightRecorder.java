@@ -44,6 +44,13 @@ public class TestflightRecorder extends Recorder
         return this.buildNotes;
     }
     
+    private String notesFilePath;
+    public String getNotesFilePath()
+    {
+    	return notesFilePath;
+    }
+    
+    
     private String filePath;
     public String getFilePath()
     {
@@ -93,10 +100,11 @@ public class TestflightRecorder extends Recorder
     }
 
     @DataBoundConstructor
-    public TestflightRecorder(String apiToken, String teamToken, Boolean notifyTeam, String buildNotes, String filePath, String dsymPath, String lists, Boolean replace, String proxyHost, String proxyUser, String proxyPass, int proxyPort)
+    public TestflightRecorder(String apiToken, String teamToken, Boolean notifyTeam, String notesFilePath, String buildNotes, String filePath, String dsymPath, String lists, Boolean replace, String proxyHost, String proxyUser, String proxyPass, int proxyPort)
     {
         this.teamToken = teamToken;
         this.apiToken = apiToken;
+        this.notesFilePath = notesFilePath;
         this.notifyTeam = notifyTeam;
         this.buildNotes = buildNotes;
         this.filePath = filePath;
@@ -152,6 +160,11 @@ public class TestflightRecorder extends Recorder
                 dsymFile = getFileLocally(build.getWorkspace(), vars.expand(dsymPath), tempDir, true);
             }
 
+            if (!StringUtils.isEmpty(notesFilePath)) {
+            	File notesFile  = getFileLocally(build.getWorkspace(), vars.expand(notesFilePath), tempDir, true);
+            	buildNotes += System.getProperty("line.separator") + System.getProperty("line.separator") + getFileContents(notesFile); 
+            }
+            		
             TestflightUploader uploader = new TestflightUploader();
             TestflightUploader.UploadRequest ur = createUploadRequest(file, dsymFile, vars);
 
@@ -231,21 +244,41 @@ public class TestflightRecorder extends Recorder
     			return workspaceDir;
     		return ipas.get(0);
     	} else {
-			if (workingDir.isRemote())
-			{
-				FilePath remoteFile = new FilePath(workingDir, strFile);
-				File file = new File(tempDir, remoteFile.getName());
-				file.createNewFile();
-				FileOutputStream fos = new FileOutputStream(file);
-				remoteFile.copyTo(fos);
-				fos.close();
-				return file;
-			}
-			else
-			{
-				return new File(strFile);
-			}
+    		return getFile(workingDir, strFile, tempDir);
         }
+    }
+    
+    private String getFileContents(File file) throws IOException
+    {
+        byte[] bytes = new byte[(int) file.length()];
+        InputStream in = new FileInputStream(file);
+        int m = 0, n = 0;
+        while (m < bytes.length) {
+        	n = in.read(bytes, m, bytes.length - m);
+    		m += n;
+        }
+        in.close();
+        
+        // using default encoding, this is probably what BufferedReader.readLine does anyway
+        return new String(bytes); 
+    }
+    
+    private File getFile(FilePath workingDir, String strFile, File tempDir) throws IOException, InterruptedException
+    {
+    	if (workingDir.isRemote())
+		{
+			FilePath remoteFile = new FilePath(workingDir, strFile);
+			File file = new File(tempDir, remoteFile.getName());
+			file.createNewFile();
+			FileOutputStream fos = new FileOutputStream(file);
+			remoteFile.copyTo(fos);
+			fos.close();
+			return file;
+		}
+		else
+		{
+			return new File(strFile);
+		}
     }
     
     private void findIpas(File root, List<File> ipas) {

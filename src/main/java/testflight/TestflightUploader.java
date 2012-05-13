@@ -31,8 +31,10 @@ public class TestflightUploader {
         String teamToken;
         Boolean notifyTeam;
         String buildNotes;
-        File file;
+        
+        File file; // ipa File
         File dsymFile;
+        
         String lists;
         Boolean replace;
         String proxyHost;
